@@ -15,6 +15,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _auth = FirebaseAuth.instance;
   final _fireStore = FirebaseFirestore.instance;
   late String email, messageText;
+  final txtController = TextEditingController();
 
   @override
   void initState() {
@@ -66,6 +67,34 @@ class _ChatScreenState extends State<ChatScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            StreamBuilder<QuerySnapshot>(
+                stream: _fireStore.collection('messages').snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return Center(
+                      child: CircularProgressIndicator(
+                        backgroundColor: Colors.lightBlueAccent,
+                      ),
+                    );
+                  }
+                  final messages = snapshot.data?.docChanges;
+                  List<MessageBubble> messageWidgets = [];
+                  for (var message in messages!!) {
+                    final messageText = message.doc.get('text');
+                    final messageSender = message.doc.get('sender');
+                    print('text is $messageText and sender is $messageSender');
+                    final textWidget =
+                        MessageBubble(text: messageText, sender: messageSender);
+                    messageWidgets.add(textWidget);
+                  }
+                  return Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 10.0, vertical: 20.0),
+                      children: messageWidgets,
+                    ),
+                  );
+                }),
             Container(
               decoration: kMessageContainerDecoration,
               child: Row(
@@ -73,6 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: <Widget>[
                   Expanded(
                     child: TextField(
+                      controller: txtController,
                       onChanged: (value) {
                         //Do something with the user input.
                         messageText = value;
@@ -83,6 +113,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   FlatButton(
                     onPressed: () {
                       //Implement send functionality.
+                      txtController.clear();
                       _fireStore
                           .collection('messages')
                           .add({'text': messageText, 'sender': email});
@@ -97,6 +128,37 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class MessageBubble extends StatelessWidget {
+  final String text, sender;
+
+  const MessageBubble({super.key, required this.text, required this.sender});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.all(10.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(' from $sender'),
+          Material(
+            borderRadius: BorderRadius.circular(30.0),
+            elevation: 5.0,
+            color: Colors.lightBlueAccent,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
+              child: Text(
+                '$text',
+                style: TextStyle(fontSize: 25.0),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
